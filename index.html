@@ -187,9 +187,9 @@
             transition: transform 0.12s, box-shadow 0.12s;
         }
         .start-btn:active { transform: scale(0.94); box-shadow: 0 4px 16px rgba(59,31,14,0.25); }
-        .start-btn .btn-icon { font-size: 50px; }
-        .start-btn .btn-label { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; }
-        .start-btn .btn-sub   { font-size: 12px; opacity: 0.75; font-weight: 500; }
+        .start-btn .btn-icon { font-size: 50px; pointer-events: none; }
+        .start-btn .btn-label { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; pointer-events: none; }
+        .start-btn .btn-sub   { font-size: 12px; opacity: 0.75; font-weight: 500; pointer-events: none; }
 
         /* ── View all button ── */
         .view-all-btn {
@@ -391,7 +391,7 @@
         <button class="start-btn" onclick="goToRecord()">
             <span class="btn-icon">🐾</span>
             <span class="btn-label">START</span>
-            <span class="btn-sub">tap to begin</span>
+            
         </button>
     </div>
 
