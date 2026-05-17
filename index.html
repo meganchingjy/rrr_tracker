@@ -201,6 +201,14 @@
         }
         .view-all-btn:active { background: var(--cream-dark); }
 
+        /* ── Delete button ── */
+        .delete-btn {
+            background: none; border: none; font-size: 16px;
+            cursor: pointer; padding: 4px; opacity: 0.35;
+            transition: opacity 0.15s; line-height: 1;
+        }
+        .delete-btn:active { opacity: 1; }
+
         /* ── Timer ── */
         .timer-section { text-align: center; padding: 20px 0 8px; }
         .timer-value {
@@ -227,8 +235,9 @@
         .tap-count-num {
             font-family: 'Fraunces', serif; font-size: 64px;
             font-weight: 900; line-height: 1; letter-spacing: -2px;
+            pointer-events: none;
         }
-        .tap-count-word { font-size: 15px; font-weight: 600; opacity: 0.8; }
+        .tap-count-word { font-size: 15px; font-weight: 600; opacity: 0.8; pointer-events: none; }
         .tap-hint { text-align: center; color: var(--text-muted); font-size: 14px; font-weight: 500; padding: 0 20px; }
         .ripple {
             position: absolute; border-radius: 50%;
@@ -375,7 +384,7 @@
 
     <div class="hero">
         <div class="hero-label">Resting Respiratory Rate</div>
-        <div class="hero-title">How's she<br>breathing?</div>
+        <div class="hero-title">How's his<br>breathing?</div>
     </div>
 
     <div class="start-ring">
@@ -406,7 +415,7 @@
         <div class="timer-sublabel" id="timer-sub">Tap the button on the first breath to start</div>
     </div>
     <div class="tap-area">
-        <button class="tap-btn" id="tap-btn" onclick="onTap(event)">
+        <button class="tap-btn" id="tap-btn">
             <div class="tap-count-num" id="tap-num">0</div>
             <div class="tap-count-word">breaths</div>
         </button>
@@ -565,7 +574,7 @@ async function loadHome() {
 async function loadRecentReadings() {
     const el = document.getElementById('recent-readings');
     const { data, error } = await db
-        .from('rrr_readings').select('recorded_at, bpm, notes')
+        .from('rrr_readings').select('id, recorded_at, bpm, notes')
         .order('recorded_at', { ascending: false }).limit(5);
 
     if (error || !data || data.length === 0) {
@@ -579,12 +588,15 @@ function readingRow(r) {
     const cls  = bpmClass(r.bpm);
     const icon = r.bpm >= T_RED ? '🔴 ' : r.bpm >= T_YELLOW ? '🟡 ' : '';
     const note = r.notes ? `<div class="reading-note">📝 ${escHtml(r.notes)}</div>` : '';
-    return `<div class="reading-row">
+    return `<div class="reading-row" id="row-${r.id}">
         <div class="reading-left">
             <span class="reading-date">${fmtDate(r.recorded_at)}</span>
             ${note}
         </div>
-        <span class="reading-bpm ${cls}">${icon}${r.bpm} <span class="unit">bpm</span></span>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+            <span class="reading-bpm ${cls}">${icon}${r.bpm} <span class="unit">bpm</span></span>
+            <button class="delete-btn" onclick="deleteReading('${r.id}')">🗑</button>
+        </div>
     </div>`;
 }
 
@@ -606,7 +618,7 @@ async function goToHistory() {
 
 async function fetchHistory(replace) {
     const { data, error } = await db
-        .from('rrr_readings').select('recorded_at, bpm, notes')
+        .from('rrr_readings').select('id, recorded_at, bpm, notes')
         .order('recorded_at', { ascending: false })
         .range(historyOffset, historyOffset + PAGE_SIZE - 1);
 
@@ -929,6 +941,15 @@ function fmtDate(iso, short = false) {
 
 function escHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function deleteReading(id) {
+    if (!confirm('Delete this recording?')) return;
+    const { error } = await db.from('rrr_readings').delete().eq('id', id);
+    if (error) { alert('Could not delete: ' + error.message); return; }
+    const row = document.getElementById('row-' + id);
+    if (row) row.remove();
+    loadHome();
 }
 
 init();
