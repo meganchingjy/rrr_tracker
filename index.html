@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Chocolate · RRR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;0,9..144,900;1,9..144,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box; margin: 0; padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --brown-deep:   #3B1F0E;
+            --brown-mid:    #7C4020;
+            --brown-warm:   #B5611A;
+            --cream:        #FAF3EC;
+            --cream-dark:   #F0E4D4;
+            --cream-border: #E5D0BC;
+            --green:        #3A7D44;
+            --green-bg:     #EBF5ED;
+            --yellow:       #C47C00;
+            --yellow-bg:    #FFF5DC;
+            --red:          #C0302A;
+            --red-bg:       #FDECEA;
+            --text-main:    #2E1A0E;
+            --text-muted:   #8B6A52;
+            --shadow:       0 4px 24px rgba(59,31,14,0.10);
+        }
+
+        html, body {
+            background: var(--cream);
+            color: var(--text-main);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        /* ── Screens ── */
+        .screen {
+            display: none;
+            flex-direction: column;
+            min-height: 100dvh;
+            max-width: 440px;
+            margin: 0 auto;
+            padding: 0 20px 40px;
+            animation: fadeUp 0.25s ease both;
+        }
+        .screen.active { display: flex; }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Top bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 0 8px;
+            gap: 10px;
+        }
+        .wordmark {
+            font-family: 'Fraunces', serif;
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--brown-deep);
+        }
+        .wordmark span { color: var(--brown-warm); }
+
+        .status-pill {
+            display: flex; align-items: center; gap: 6px;
+            background: var(--cream-dark);
+            border-radius: 20px; padding: 5px 11px;
+            font-size: 12px; font-weight: 600; color: var(--text-muted);
+            flex-shrink: 0;
+        }
+        .status-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--text-muted); flex-shrink: 0;
+        }
+        .status-dot.ok  { background: var(--green); }
+        .status-dot.err { background: var(--red); }
+
+        /* ── Error box ── */
+        .error-box {
+            background: var(--red-bg);
+            border: 1px solid #f5c6c4;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 13px;
+            color: #6B1010;
+            margin: 8px 0;
+            display: none;
+            word-break: break-word;
+        }
+        .error-box.show { display: block; }
+        .error-box strong { font-weight: 700; display: block; margin-bottom: 4px; }
+
+        /* ── Alert banner ── */
+        .alert {
+            border-radius: 14px; padding: 14px 16px;
+            margin: 8px 0; font-size: 14px; font-weight: 500;
+            line-height: 1.5; display: none;
+        }
+        .alert.show { display: block; }
+        .alert.yellow { background: var(--yellow-bg); border-left: 4px solid var(--yellow); color: #6B4300; }
+        .alert.red    { background: var(--red-bg);    border-left: 4px solid var(--red);    color: #6B1010; }
+        .alert strong { font-weight: 700; }
+
+        /* ── Cards ── */
+        .card {
+            background: #fff; border-radius: 18px;
+            padding: 16px 18px; box-shadow: var(--shadow); margin-bottom: 12px;
+        }
+
+        .section-label {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 10px;
+        }
+
+        /* ── Reading rows ── */
+        .reading-row {
+            display: flex; justify-content: space-between;
+            align-items: flex-start; padding: 11px 0;
+            border-bottom: 1px solid var(--cream-border);
+            gap: 10px;
+        }
+        .reading-row:last-child { border-bottom: none; }
+
+        .reading-left { display: flex; flex-direction: column; gap: 2px; }
+        .reading-date { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+        .reading-note { font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+        .reading-bpm {
+            font-family: 'Fraunces', serif; font-size: 20px;
+            font-weight: 700; white-space: nowrap; flex-shrink: 0;
+        }
+        .reading-bpm .unit {
+            font-family: 'DM Sans', sans-serif; font-size: 12px;
+            font-weight: 500; color: var(--text-muted);
+        }
+
+        .bpm-normal { color: var(--green); }
+        .bpm-yellow { color: var(--yellow); }
+        .bpm-red    { color: var(--red); }
+
+        .empty-state {
+            text-align: center; padding: 20px 0;
+            color: var(--text-muted); font-size: 14px;
+        }
+
+        /* ── Home hero ── */
+        .hero { text-align: center; padding: 28px 0 16px; }
+        .hero-label {
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 6px;
+        }
+        .hero-title {
+            font-family: 'Fraunces', serif; font-size: 38px;
+            font-weight: 900; color: var(--brown-deep); line-height: 1.1;
+        }
+
+        /* ── Start button ── */
+        .start-ring {
+            position: relative; width: 200px; height: 200px; margin: 24px auto;
+        }
+        .start-ring::before {
+            content: ''; position: absolute; inset: -8px;
+            border-radius: 50%; border: 2px dashed var(--cream-border);
+            animation: spin 20s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .start-btn {
+            width: 200px; height: 200px; border-radius: 50%; border: none;
+            background: linear-gradient(145deg, var(--brown-warm) 0%, var(--brown-deep) 100%);
+            color: #fff; cursor: pointer;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 4px;
+            box-shadow: 0 12px 40px rgba(59,31,14,0.35);
+            transition: transform 0.12s, box-shadow 0.12s;
+        }
+        .start-btn:active { transform: scale(0.94); box-shadow: 0 4px 16px rgba(59,31,14,0.25); }
+        .start-btn .btn-icon { font-size: 50px; }
+        .start-btn .btn-label { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; }
+        .start-btn .btn-sub   { font-size: 12px; opacity: 0.75; font-weight: 500; }
+
+        /* ── View all button ── */
+        .view-all-btn {
+            background: none; border: 2px solid var(--cream-border);
+            border-radius: 12px; padding: 12px;
+            width: 100%; font-size: 14px; font-weight: 600;
+            color: var(--brown-mid); cursor: pointer;
+            transition: background 0.15s;
+        }
+        .view-all-btn:active { background: var(--cream-dark); }
+
+        /* ── Timer ── */
+        .timer-section { text-align: center; padding: 20px 0 8px; }
+        .timer-value {
+            font-family: 'Fraunces', serif; font-size: 80px;
+            font-weight: 900; color: var(--brown-deep);
+            line-height: 1; letter-spacing: -3px; transition: color 0.3s;
+        }
+        .timer-value.urgent  { color: var(--red); }
+        .timer-value.waiting { color: var(--cream-border); }
+        .timer-sublabel { font-size: 13px; color: var(--text-muted); font-weight: 500; margin-top: 4px; }
+
+        /* ── Tap button ── */
+        .tap-area { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px 0; }
+        .tap-btn {
+            width: 230px; height: 230px; border-radius: 50%; border: none;
+            background: linear-gradient(145deg, var(--brown-warm) 0%, var(--brown-deep) 100%);
+            color: #fff; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: 0 14px 44px rgba(59,31,14,0.38);
+            transition: transform 0.08s, box-shadow 0.08s;
+            user-select: none; position: relative; overflow: hidden;
+        }
+        .tap-btn:active { transform: scale(0.91); box-shadow: 0 5px 18px rgba(59,31,14,0.28); }
+        .tap-count-num {
+            font-family: 'Fraunces', serif; font-size: 64px;
+            font-weight: 900; line-height: 1; letter-spacing: -2px;
+        }
+        .tap-count-word { font-size: 15px; font-weight: 600; opacity: 0.8; }
+        .tap-hint { text-align: center; color: var(--text-muted); font-size: 14px; font-weight: 500; padding: 0 20px; }
+        .ripple {
+            position: absolute; border-radius: 50%;
+            background: rgba(255,255,255,0.25); transform: scale(0);
+            animation: rippleOut 0.5s ease-out forwards; pointer-events: none;
+        }
+        @keyframes rippleOut { to { transform: scale(2.5); opacity: 0; } }
+
+        /* ── Notes screen ── */
+        .notes-hero { text-align: center; padding: 32px 0 20px; }
+        .notes-hero .big-icon { font-size: 56px; margin-bottom: 8px; }
+        .notes-hero h2 {
+            font-family: 'Fraunces', serif; font-size: 28px;
+            font-weight: 900; color: var(--brown-deep);
+        }
+        .notes-hero p { font-size: 14px; color: var(--text-muted); margin-top: 6px; }
+
+        .bpm-result-mini { text-align: center; margin: 0 0 24px; }
+        .bpm-result-mini .num {
+            font-family: 'Fraunces', serif; font-size: 56px;
+            font-weight: 900; line-height: 1;
+        }
+        .bpm-result-mini .lbl { font-size: 14px; color: var(--text-muted); }
+
+        .notes-textarea {
+            width: 100%; min-height: 100px;
+            border: 2px solid var(--cream-border);
+            border-radius: 14px; padding: 14px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px; color: var(--text-main);
+            background: #fff; resize: none;
+            transition: border-color 0.2s; outline: none;
+        }
+        .notes-textarea:focus { border-color: var(--brown-warm); }
+        .notes-textarea::placeholder { color: var(--cream-border); }
+
+        /* ── Results ── */
+        .result-hero { text-align: center; padding: 20px 0 12px; }
+        .result-number {
+            font-family: 'Fraunces', serif; font-size: 88px;
+            font-weight: 900; line-height: 1; letter-spacing: -4px;
+        }
+        .result-label { font-size: 14px; color: var(--text-muted); font-weight: 500; margin-top: 4px; }
+        .flag-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 7px 16px; border-radius: 30px;
+            font-size: 13px; font-weight: 700; margin-top: 12px;
+        }
+        .flag-chip.normal { background: var(--green-bg);  color: #1B5E27; }
+        .flag-chip.yellow { background: var(--yellow-bg); color: #6B4300; }
+        .flag-chip.red    { background: var(--red-bg);    color: #6B1010; }
+
+        .compare-row { display: flex; align-items: stretch; gap: 1px; }
+        .compare-col { flex: 1; text-align: center; }
+        .compare-col-label {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px;
+        }
+        .compare-col-value { font-family: 'Fraunces', serif; font-size: 36px; font-weight: 900; line-height: 1; }
+        .compare-col-date  { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .compare-divider   { display: flex; align-items: center; padding: 0 8px; color: var(--cream-border); font-size: 22px; }
+        .change-chip {
+            text-align: center; margin-top: 12px; font-size: 14px;
+            font-weight: 600; padding: 6px; border-radius: 8px;
+        }
+        .change-up   { color: var(--red);       background: var(--red-bg); }
+        .change-down { color: var(--green);      background: var(--green-bg); }
+        .change-same { color: var(--text-muted); background: var(--cream-dark); }
+
+        /* ── History ── */
+        .load-more-btn {
+            width: 100%; padding: 14px; border-radius: 14px;
+            border: 2px solid var(--cream-border); background: none;
+            font-size: 14px; font-weight: 600; color: var(--brown-mid);
+            cursor: pointer; margin-top: 4px; transition: background 0.15s;
+        }
+        .load-more-btn:active { background: var(--cream-dark); }
+
+        /* ── Buttons ── */
+        .btn-primary {
+            width: 100%; padding: 17px; border-radius: 16px; border: none;
+            background: linear-gradient(135deg, var(--brown-warm), var(--brown-deep));
+            color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 6px 20px rgba(59,31,14,0.25);
+            transition: opacity 0.15s, transform 0.12s; margin-top: 8px;
+        }
+        .btn-primary:active { opacity: 0.85; transform: scale(0.98); }
+        .btn-secondary {
+            width: 100%; padding: 15px; border-radius: 16px;
+            border: 2px solid var(--cream-border); background: transparent;
+            color: var(--brown-mid); font-size: 15px; font-weight: 600;
+            cursor: pointer; margin-top: 10px; transition: background 0.15s;
+        }
+        .btn-secondary:active { background: var(--cream-dark); }
+        .btn-ghost {
+            background: none; border: 2px solid var(--cream-border);
+            border-radius: 14px; padding: 14px; width: 100%;
+            font-size: 15px; font-weight: 600; color: var(--text-muted);
+            cursor: pointer; margin-top: 16px; transition: background 0.15s;
+        }
+        .btn-ghost:active { background: var(--cream-dark); }
+        .back-btn {
+            background: none; border: none; font-size: 15px; font-weight: 600;
+            color: var(--brown-mid); cursor: pointer; padding: 4px 0;
+            display: flex; align-items: center; gap: 4px;
+        }
+
+        /* ── Saving overlay ── */
+        .saving-overlay {
+            position: fixed; inset: 0;
+            background: rgba(250,243,236,0.9);
+            display: none; align-items: center; justify-content: center;
+            z-index: 99; font-family: 'Fraunces', serif;
+            font-size: 22px; color: var(--brown-deep);
+        }
+        .saving-overlay.show { display: flex; }
+
+        .spacer { flex: 1; }
+        .gap-sm { height: 12px; }
+        .gap-md { height: 20px; }
+        .loading-row { text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="saving-overlay" id="saving-overlay">Saving… 🐾</div>
+
+<!-- ══════════ HOME ══════════ -->
+<div id="screen-home" class="screen active">
+    <div class="top-bar">
+        <div class="wordmark">RRR <span>·</span> Chocolate</div>
+        <div class="status-pill">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">…</span>
+        </div>
+    </div>
+
+    <div id="conn-error" class="error-box">
+        <strong>⚠️ Connection error — here's what went wrong:</strong>
+        <span id="conn-error-msg"></span>
+    </div>
+
+    <div id="home-alert" class="alert"></div>
+
+    <div class="hero">
+        <div class="hero-label">Resting Respiratory Rate</div>
+        <div class="hero-title">How's she<br>breathing?</div>
+    </div>
+
+    <div class="start-ring">
+        <button class="start-btn" onclick="goToRecord()">
+            <span class="btn-icon">🐾</span>
+            <span class="btn-label">START</span>
+            <span class="btn-sub">tap to begin</span>
+        </button>
+    </div>
+
+    <div class="gap-sm"></div>
+    <div class="section-label">Recent Readings</div>
+    <div class="card" id="recent-readings"><div class="loading-row">Loading…</div></div>
+
+    <button class="view-all-btn" onclick="goToHistory()">View All Recordings →</button>
+
+    <div class="spacer"></div>
+</div>
+
+
+<!-- ══════════ RECORD ══════════ -->
+<div id="screen-record" class="screen">
+    <div class="top-bar">
+        <div class="wordmark">Recording</div>
+    </div>
+    <div class="timer-section">
+        <div class="timer-value waiting" id="timer-val">30</div>
+        <div class="timer-sublabel" id="timer-sub">Tap the button on the first breath to start</div>
+    </div>
+    <div class="tap-area">
+        <button class="tap-btn" id="tap-btn" onclick="onTap(event)">
+            <div class="tap-count-num" id="tap-num">0</div>
+            <div class="tap-count-word">breaths</div>
+        </button>
+    </div>
+    <p class="tap-hint" id="tap-hint">Each inhale (or exhale) counts as one breath</p>
+    <div class="gap-sm"></div>
+    <button class="btn-ghost" onclick="cancelRecording()">Cancel</button>
+</div>
+
+
+<!-- ══════════ NOTES ══════════ -->
+<div id="screen-notes" class="screen">
+    <div class="top-bar">
+        <div class="wordmark">Add a Note</div>
+    </div>
+
+    <div class="notes-hero">
+        <div class="big-icon">📝</div>
+        <h2>Recording complete</h2>
+        <p>Add an optional note about this reading</p>
+    </div>
+
+    <div class="bpm-result-mini">
+        <div class="num" id="notes-bpm-num">--</div>
+        <div class="lbl">breaths per minute</div>
+        <div id="notes-flag-chip" style="margin-top:10px;"></div>
+    </div>
+
+    <textarea
+        class="notes-textarea"
+        id="notes-input"
+        placeholder="e.g. Sleeping deeply, looked laboured, post-exercise…"
+        maxlength="300"
+    ></textarea>
+
+    <div id="save-error" class="error-box" style="margin-top:10px;">
+        <strong>⚠️ Couldn't save — here's the error:</strong>
+        <span id="save-error-msg"></span>
+    </div>
+
+    <button class="btn-primary" onclick="saveRecording(false)">Save Recording</button>
+    <button class="btn-secondary" onclick="saveRecording(true)">Skip Note & Save</button>
+</div>
+
+
+<!-- ══════════ RESULTS ══════════ -->
+<div id="screen-results" class="screen">
+    <div class="top-bar">
+        <div class="wordmark">Result</div>
+    </div>
+
+    <div id="results-alert" class="alert"></div>
+
+    <div class="result-hero">
+        <div class="result-number bpm-normal" id="result-num">--</div>
+        <div class="result-label">breaths per minute</div>
+        <div id="flag-chip"></div>
+    </div>
+
+    <div class="section-label">vs Previous Recording</div>
+    <div class="card" id="comparison-card"><div class="loading-row">Loading…</div></div>
+
+    <div class="section-label">7-Day Trend</div>
+    <div class="card">
+        <canvas id="trend-chart"></canvas>
+    </div>
+
+    <div class="gap-md"></div>
+    <button class="btn-primary" onclick="goHome()">Done ✓</button>
+    <button class="btn-secondary" onclick="goToRecord()">Record Again</button>
+    <div class="gap-md"></div>
+</div>
+
+
+<!-- ══════════ ALL RECORDINGS ══════════ -->
+<div id="screen-history" class="screen">
+    <div class="top-bar">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <div class="wordmark">All Recordings</div>
+    </div>
+    <div class="gap-sm"></div>
+    <div class="card" id="history-list"><div class="loading-row">Loading…</div></div>
+    <button class="load-more-btn" id="load-more-btn" onclick="loadMoreHistory()" style="display:none;">Load older recordings…</button>
+    <div class="gap-md"></div>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════════════
+//  ⚙️  CONFIG
+//  1. Paste your URL:  https://xxxxxxxxxxxx.supabase.co
+//  2. Paste your key:  the "anon / public" key from
+//     Project Settings → API in your Supabase dashboard
+// ═══════════════════════════════════════════════════
+const SUPABASE_URL      = 'https://obnqrhrdawqqvezoxnzd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ibnFyaHJkYXdxcXZlem94bnpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNjU2NTgsImV4cCI6MjA5MTc0MTY1OH0.sVaa-0nAI5MwunGrEiowx7tKLEnllbCWS94c95PZK30';
+
+const T_YELLOW = 24;
+const T_RED    = 30;
+
+let db             = null;
+let timerInterval  = null;
+let secsLeft       = 30;
+let breathCount    = 0;
+let timerRunning   = false;
+let trendChart     = null;
+let pendingBPM     = 0;
+let pendingBreaths = 0;
+let pendingTime    = null;
+let historyOffset  = 0;
+const PAGE_SIZE    = 20;
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+async function init() {
+    if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+        showConnError('You haven\'t added your Supabase details yet. Open the file in a text editor, scroll to the CONFIG section near the bottom, and replace YOUR_SUPABASE_URL and YOUR_SUPABASE_ANON_KEY with your real values.');
+        return;
+    }
+    if (!SUPABASE_URL.startsWith('https://')) {
+        showConnError('Your Supabase URL must start with https://  —  e.g. https://abcxyz.supabase.co');
+        return;
+    }
+
+    try {
+        const { createClient } = supabase;
+        db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { error } = await db.from('rrr_readings').select('id').limit(1);
+        if (error) throw error;
+        setStatus('ok', 'Connected');
+        loadHome();
+    } catch (e) {
+        showConnError(e?.message || String(e));
+    }
+}
+
+function showConnError(msg) {
+    setStatus('err', 'Error');
+    document.getElementById('conn-error-msg').textContent = msg;
+    document.getElementById('conn-error').classList.add('show');
+}
+
+function setStatus(type, text) {
+    document.getElementById('status-dot').className = 'status-dot ' + type;
+    document.getElementById('status-text').textContent = text;
+}
+
+// ═══════════════════════════════════════════════════
+//  HOME
+// ═══════════════════════════════════════════════════
+async function loadHome() {
+    await Promise.all([loadRecentReadings(), loadHomeAlert()]);
+}
+
+async function loadRecentReadings() {
+    const el = document.getElementById('recent-readings');
+    const { data, error } = await db
+        .from('rrr_readings').select('recorded_at, bpm, notes')
+        .order('recorded_at', { ascending: false }).limit(5);
+
+    if (error || !data || data.length === 0) {
+        el.innerHTML = '<div class="empty-state">No recordings yet — tap START to begin 🐾</div>';
+        return;
+    }
+    el.innerHTML = data.map(r => readingRow(r)).join('');
+}
+
+function readingRow(r) {
+    const cls  = bpmClass(r.bpm);
+    const icon = r.bpm >= T_RED ? '🔴 ' : r.bpm >= T_YELLOW ? '🟡 ' : '';
+    const note = r.notes ? `<div class="reading-note">📝 ${escHtml(r.notes)}</div>` : '';
+    return `<div class="reading-row">
+        <div class="reading-left">
+            <span class="reading-date">${fmtDate(r.recorded_at)}</span>
+            ${note}
+        </div>
+        <span class="reading-bpm ${cls}">${icon}${r.bpm} <span class="unit">bpm</span></span>
+    </div>`;
+}
+
+async function loadHomeAlert() {
+    const data = await last7DaysData();
+    renderAlert(data, 'home-alert');
+}
+
+// ═══════════════════════════════════════════════════
+//  HISTORY
+// ═══════════════════════════════════════════════════
+async function goToHistory() {
+    historyOffset = 0;
+    document.getElementById('history-list').innerHTML = '<div class="loading-row">Loading…</div>';
+    document.getElementById('load-more-btn').style.display = 'none';
+    showScreen('screen-history');
+    await fetchHistory(true);
+}
+
+async function fetchHistory(replace) {
+    const { data, error } = await db
+        .from('rrr_readings').select('recorded_at, bpm, notes')
+        .order('recorded_at', { ascending: false })
+        .range(historyOffset, historyOffset + PAGE_SIZE - 1);
+
+    const el = document.getElementById('history-list');
+
+    if (error) {
+        el.innerHTML = `<div class="empty-state">Error: ${escHtml(error.message)}</div>`;
+        return;
+    }
+    if (!data || data.length === 0) {
+        if (replace) el.innerHTML = '<div class="empty-state">No recordings yet 🐾</div>';
+        document.getElementById('load-more-btn').style.display = 'none';
+        return;
+    }
+
+    const html = data.map(r => readingRow(r)).join('');
+    el.innerHTML = replace ? html : el.innerHTML + html;
+    historyOffset += data.length;
+    document.getElementById('load-more-btn').style.display =
+        data.length === PAGE_SIZE ? 'block' : 'none';
+}
+
+async function loadMoreHistory() {
+    await fetchHistory(false);
+}
+
+// ═══════════════════════════════════════════════════
+//  ALERTS
+// ═══════════════════════════════════════════════════
+async function last7DaysData() {
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+    const { data } = await db
+        .from('rrr_readings').select('recorded_at, bpm')
+        .gte('recorded_at', since.toISOString());
+    return data || [];
+}
+
+function renderAlert(data, containerId) {
+    const el = document.getElementById(containerId);
+    const maxPerDay = {};
+    data.forEach(r => {
+        const day = r.recorded_at.slice(0, 10);
+        if (!maxPerDay[day] || r.bpm > maxPerDay[day]) maxPerDay[day] = r.bpm;
+    });
+    const days       = Object.values(maxPerDay);
+    const redDays    = days.filter(b => b >= T_RED).length;
+    const yellowDays = days.filter(b => b >= T_YELLOW).length;
+
+    el.className = 'alert';
+    if (redDays >= 2) {
+        el.className = 'alert red show';
+        el.innerHTML = `<strong>🔴 Urgent:</strong> Chocolate's RRR has been ≥30 bpm on <strong>${redDays} days</strong> in the last 7 days. Please contact your vet.`;
+    } else if (yellowDays >= 2) {
+        el.className = 'alert yellow show';
+        el.innerHTML = `<strong>⚠️ Watch closely:</strong> RRR has been ≥24 bpm on <strong>${yellowDays} days</strong> in the last 7 days. Monitor carefully.`;
+    }
+}
+
+// ═══════════════════════════════════════════════════
+//  RECORDING
+// ═══════════════════════════════════════════════════
+function goToRecord() {
+    breathCount  = 0;
+    secsLeft     = 30;
+    timerRunning = false;
+    clearInterval(timerInterval);
+
+    document.getElementById('tap-num').textContent   = '0';
+    document.getElementById('timer-val').textContent  = '30';
+    document.getElementById('timer-val').className    = 'timer-value waiting';
+    document.getElementById('timer-sub').textContent  = 'Tap the button on the first breath to start';
+    document.getElementById('tap-hint').textContent   = 'Each inhale (or exhale) counts as one breath';
+
+    showScreen('screen-record');
+}
+
+function onTap(e) {
+    if (navigator.vibrate) navigator.vibrate(25);
+
+    const btn = document.getElementById('tap-btn');
+    const rip = document.createElement('div');
+    rip.className = 'ripple';
+    const size = 120;
+    rip.style.cssText = `width:${size}px;height:${size}px;left:${(btn.offsetWidth-size)/2}px;top:${(btn.offsetHeight-size)/2}px`;
+    btn.appendChild(rip);
+    setTimeout(() => rip.remove(), 600);
+
+    if (!timerRunning) {
+        timerRunning = true;
+        document.getElementById('timer-val').className  = 'timer-value';
+        document.getElementById('timer-sub').textContent = 'seconds remaining';
+        document.getElementById('tap-hint').textContent  = 'Keep tapping — one tap per breath!';
+        startTimer();
+    }
+
+    breathCount++;
+    document.getElementById('tap-num').textContent = breathCount;
+}
+
+function startTimer() {
+    timerInterval = setInterval(() => {
+        secsLeft--;
+        const el = document.getElementById('timer-val');
+        el.textContent = secsLeft;
+        if (secsLeft <= 5) el.className = 'timer-value urgent';
+        if (secsLeft <= 0) { clearInterval(timerInterval); goToNotes(); }
+    }, 1000);
+}
+
+function cancelRecording() {
+    clearInterval(timerInterval);
+    goHome();
+}
+
+// ═══════════════════════════════════════════════════
+//  NOTES SCREEN
+// ═══════════════════════════════════════════════════
+function goToNotes() {
+    pendingBPM     = breathCount * 2;
+    pendingBreaths = breathCount;
+    pendingTime    = new Date().toISOString();
+
+    const numEl = document.getElementById('notes-bpm-num');
+    numEl.textContent = pendingBPM;
+    numEl.className   = `num ${bpmClass(pendingBPM)}`;
+
+    const chip = document.getElementById('notes-flag-chip');
+    if (pendingBPM >= T_RED) {
+        chip.innerHTML = `<div class="flag-chip red">🔴 High — ≥30 bpm</div>`;
+    } else if (pendingBPM >= T_YELLOW) {
+        chip.innerHTML = `<div class="flag-chip yellow">⚠️ Elevated — ≥24 bpm</div>`;
+    } else {
+        chip.innerHTML = `<div class="flag-chip normal">✅ Normal range</div>`;
+    }
+
+    document.getElementById('notes-input').value = '';
+    document.getElementById('save-error').classList.remove('show');
+    showScreen('screen-notes');
+}
+
+async function saveRecording(skipNote) {
+    const notes = skipNote ? null : (document.getElementById('notes-input').value.trim() || null);
+
+    document.getElementById('saving-overlay').classList.add('show');
+
+    const { error } = await db.from('rrr_readings').insert({
+        recorded_at:  pendingTime,
+        breath_count: pendingBreaths,
+        bpm:          pendingBPM,
+        notes:        notes
+    });
+
+    document.getElementById('saving-overlay').classList.remove('show');
+
+    if (error) {
+        document.getElementById('save-error-msg').textContent =
+            `${error.message}  —  Your reading was ${pendingBPM} bpm. Screenshot this if needed.`;
+        document.getElementById('save-error').classList.add('show');
+        return;
+    }
+
+    showScreen('screen-results');
+    renderResults(pendingBPM, pendingTime);
+}
+
+// ═══════════════════════════════════════════════════
+//  RESULTS
+// ═══════════════════════════════════════════════════
+async function renderResults(bpm, now) {
+    const numEl = document.getElementById('result-num');
+    numEl.textContent = bpm;
+    numEl.className   = `result-number ${bpmClass(bpm)}`;
+
+    const chipEl = document.getElementById('flag-chip');
+    if (bpm >= T_RED) {
+        chipEl.innerHTML = `<div class="flag-chip red">🔴 High — ≥30 bpm · Please contact your vet</div>`;
+    } else if (bpm >= T_YELLOW) {
+        chipEl.innerHTML = `<div class="flag-chip yellow">⚠️ Elevated — ≥24 bpm · Monitor closely</div>`;
+    } else {
+        chipEl.innerHTML = `<div class="flag-chip normal">✅ Normal range</div>`;
+    }
+
+    const { data } = await db
+        .from('rrr_readings').select('recorded_at, bpm, breath_count')
+        .order('recorded_at', { ascending: false }).limit(20);
+
+    if (!data) return;
+
+    const since = new Date(); since.setDate(since.getDate() - 7);
+    renderAlert(data.filter(r => new Date(r.recorded_at) >= since), 'results-alert');
+
+    const compEl = document.getElementById('comparison-card');
+    if (data.length >= 2) {
+        const prev = data[1];
+        const diff = bpm - prev.bpm;
+        const diffLabel = diff === 0 ? 'No change from last reading'
+            : diff > 0 ? `▲ ${diff} bpm higher than last reading`
+            : `▼ ${Math.abs(diff)} bpm lower than last reading`;
+        const diffCls = diff > 0 ? 'change-up' : diff < 0 ? 'change-down' : 'change-same';
+
+        compEl.innerHTML = `
+            <div class="compare-row">
+                <div class="compare-col">
+                    <div class="compare-col-label">Previous</div>
+                    <div class="compare-col-value ${bpmClass(prev.bpm)}">${prev.bpm}</div>
+                    <div class="compare-col-date">${fmtDate(prev.recorded_at)}</div>
+                </div>
+                <div class="compare-divider">→</div>
+                <div class="compare-col">
+                    <div class="compare-col-label">Now</div>
+                    <div class="compare-col-value ${bpmClass(bpm)}">${bpm}</div>
+                    <div class="compare-col-date">${fmtDate(now)}</div>
+                </div>
+            </div>
+            <div class="change-chip ${diffCls}">${diffLabel}</div>`;
+    } else {
+        compEl.innerHTML = '<div class="empty-state">First recording! 🎉</div>';
+    }
+
+    renderChart([...data].reverse().slice(-10));
+}
+
+function renderChart(data) {
+    const ctx = document.getElementById('trend-chart').getContext('2d');
+    if (trendChart) { trendChart.destroy(); trendChart = null; }
+
+    const labels      = data.map(r => fmtDate(r.recorded_at, true));
+    const values      = data.map(r => r.bpm);
+    const pointColors = values.map(v =>
+        v >= T_RED ? '#C0302A' : v >= T_YELLOW ? '#C47C00' : '#3A7D44'
+    );
+
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                data: values,
+                borderColor: '#B5611A',
+                backgroundColor: 'rgba(181,97,26,0.08)',
+                borderWidth: 2.5,
+                pointBackgroundColor: pointColors,
+                pointBorderColor: pointColors,
+                pointRadius: 7,
+                pointHoverRadius: 9,
+                tension: 0.35,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: c => `${c.raw} bpm` } }
+            },
+            scales: {
+                y: {
+                    min: 0, suggestedMax: 36,
+                    ticks: { font: { size: 11 }, color: '#8B6A52' },
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                },
+                x: {
+                    ticks: { font: { size: 10 }, color: '#8B6A52', maxRotation: 40 },
+                    grid: { display: false }
+                }
+            }
+        },
+        plugins: [{
+            id: 'thresholdLines',
+            afterDraw(chart) {
+                const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+                const line = (val, color, lbl) => {
+                    const yp = y.getPixelForValue(val);
+                    ctx.save();
+                    ctx.setLineDash([5, 4]);
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(left, yp);
+                    ctx.lineTo(right, yp);
+                    ctx.stroke();
+                    ctx.fillStyle = color;
+                    ctx.font = '600 10px "DM Sans", sans-serif';
+                    ctx.fillText(lbl, right - 44, yp - 5);
+                    ctx.restore();
+                };
+                line(T_RED,    '#C0302A', '30 🔴');
+                line(T_YELLOW, '#C47C00', '24 ⚠️');
+            }
+        }]
+    });
+}
+
+// ═══════════════════════════════════════════════════
+//  NAV & HELPERS
+// ═══════════════════════════════════════════════════
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+}
+
+function goHome() {
+    showScreen('screen-home');
+    if (db) loadHome();
+}
+
+function bpmClass(bpm) {
+    if (bpm >= T_RED)    return 'bpm-red';
+    if (bpm >= T_YELLOW) return 'bpm-yellow';
+    return 'bpm-normal';
+}
+
+function fmtDate(iso, short = false) {
+    const d = new Date(iso);
+    if (short) return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+    return d.toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+</body>
+</html>
