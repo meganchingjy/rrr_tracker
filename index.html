@@ -172,7 +172,7 @@
         }
         .start-ring::before {
             content: ''; position: absolute; inset: -8px;
-            border-radius: 50%; border: 2px dashed var(--cream-border);
+            border-radius: 50%; border: 2px dashed var(--cream-border); pointer-events: none;
             animation: spin 20s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
